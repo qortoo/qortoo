@@ -1,0 +1,20 @@
+import { execFileSync } from 'node:child_process';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+
+export const git = (directory, ...args) => execFileSync('git', ['-C', directory, ...args], { encoding: 'utf8' }).trimEnd();
+export function loadSources(root, config, env = process.env) {
+  return config.sources.map((definition) => {
+    if (!/^[a-z][a-z0-9-]*$/.test(definition.id)) throw new Error(`Invalid source id: ${definition.id}`);
+    const directory = path.resolve(root, env[definition.directoryEnv] ?? definition.directory);
+    const ref = env[definition.refEnv] ?? definition.ref;
+    const sha = git(directory, 'rev-parse', '--verify', `${ref}^{commit}`);
+    const entries = execFileSync('git', ['-C', directory, 'ls-tree', '-r', '-z', sha], { encoding: 'utf8' }).split('\0').filter(Boolean);
+    const files = new Set(entries.filter((entry) => /^100(?:644|755) blob /.test(entry)).map((entry) => entry.slice(entry.indexOf('\t') + 1)));
+    return { ...definition, directory, ref, sha, files, dirtyDocs: git(directory, 'status', '--porcelain', '--', 'docs') !== '' };
+  });
+}
+export async function readSource(source, file, worktree) {
+  if (worktree) return readFile(path.join(source.directory, file));
+  return execFileSync('git', ['-C', source.directory, 'show', `${source.sha}:${file}`], { maxBuffer: 32 * 1024 * 1024 });
+}

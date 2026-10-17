@@ -11,3 +11,8 @@ server components are planned but are not yet available. Start with the SDK for 
 
 Each SDK repository owns its current feature scope, setup instructions, API reference,
 and contribution guide.
+
+## Developer website
+
+See the [developer site guide](docs/developer-site.md) for local development,
+documentation sources, and validation.

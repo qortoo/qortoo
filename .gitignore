@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.source/
+out/
+content/
+public/generated/
+next-env.d.ts
+*.tsbuildinfo
+public/api/
+.cache/

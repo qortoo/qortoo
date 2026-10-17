@@ -1,0 +1,30 @@
+{
+  "sources": [
+    {
+      "id": "rust",
+      "title": "Rust SDK",
+      "repository": "qortoo/qortoo-rs",
+      "directory": "../qortoo-rs",
+      "directoryEnv": "QORTOO_RS_DIR",
+      "ref": "main",
+      "refEnv": "QORTOO_RS_REF",
+      "navigation": [
+        "index", "---Start here---", "getting-started",
+        "---Core concepts---", "architecture", "core-types", "client-and-datatype-builder",
+        "datatype-state", "transaction-and-rollback", "counter", "variable", "connectivity",
+        "---Internals---", "handler-system", "event-loop", "error-handling",
+        "---Operations & integration---", "observability", "runtime-resources", "go-binding", "performance", "..."
+      ]
+    },
+    {
+      "id": "go",
+      "title": "Go SDK",
+      "repository": "qortoo/qortoo-go",
+      "directory": "../qortoo-go",
+      "directoryEnv": "QORTOO_GO_DIR",
+      "ref": "main",
+      "refEnv": "QORTOO_GO_REF",
+      "navigation": ["index", "---Start here---", "getting-started", "---Using the SDK---", "lifecycle-and-concurrency", "observability", "performance", "..."]
+    }
+  ]
+}

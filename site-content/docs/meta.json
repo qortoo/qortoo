@@ -1,0 +1,11 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "index",
+    "rust",
+    "go",
+    "api",
+    "rust-api",
+    "go-api"
+  ]
+}
