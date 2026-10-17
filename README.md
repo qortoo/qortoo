@@ -14,5 +14,7 @@ and contribution guide.
 
 ## Developer website
 
+Visit [qortoo.github.io/qortoo](https://qortoo.github.io/qortoo/) for SDK guides and API references.
+
 See the [developer site guide](docs/developer-site.md) for local development,
 documentation sources, and validation.

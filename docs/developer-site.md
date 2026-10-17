@@ -61,6 +61,11 @@ introduction and API guidance live in `site-content/docs/`. Homepage examples ar
 extracted from SDK getting started guides. Change SDK behavior explanations in the
 owning SDK repository; change navigation and presentation in this repository.
 
+Diagrams use SVG text labels. The renderer fits a diagram to the available width
+when it needs at most 15% reduction, preserves its aspect ratio, and recalculates
+on resize. Smaller diagrams retain their original size; wider diagrams retain
+their original size and keyboard-accessible horizontal scrolling for readability.
+
 ## Validation
 
 ```sh
