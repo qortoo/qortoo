@@ -1,0 +1,133 @@
+name: Build SDK documentation
+
+on:
+  workflow_call:
+    inputs:
+      site_ref:
+        description: Website revision to build
+        type: string
+        default: main
+      candidate_sdk:
+        description: SDK to replace with a pull request head (rust or go)
+        type: string
+        default: ''
+      candidate_repository:
+        type: string
+        default: ''
+      candidate_sha:
+        type: string
+        default: ''
+      upload_pages:
+        type: boolean
+        default: false
+    outputs:
+      inputs:
+        description: Immutable website and SDK inputs
+        value: ${{ jobs.resolve.outputs.inputs }}
+      built:
+        description: Whether validation completed and a build was produced
+        value: ${{ jobs.build.outputs.built }}
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      inputs: ${{ steps.resolve.outputs.inputs }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          repository: qortoo/qortoo
+          ref: ${{ inputs.site_ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .node-version
+      - name: Resolve immutable documentation inputs
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SDK: ${{ inputs.candidate_sdk }}
+          CANDIDATE_REPOSITORY: ${{ inputs.candidate_repository }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: node scripts/resolve-docs-inputs.mjs
+
+  build:
+    needs: resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: site
+    outputs:
+      built: ${{ steps.complete.outputs.built }}
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      QORTOO_DOCS_WORKTREE: '0'
+      DOCS_INPUTS: ${{ needs.resolve.outputs.inputs }}
+      QORTOO_RS_REF: ${{ fromJSON(needs.resolve.outputs.inputs).sources.rust.sha }}
+      QORTOO_GO_REF: ${{ fromJSON(needs.resolve.outputs.inputs).sources.go.sha }}
+      QORTOO_RS_REPOSITORY: ${{ fromJSON(needs.resolve.outputs.inputs).sources.rust.repository }}
+      QORTOO_GO_REPOSITORY: ${{ fromJSON(needs.resolve.outputs.inputs).sources.go.repository }}
+    steps:
+      - name: Check out website
+        uses: actions/checkout@v7
+        with:
+          repository: qortoo/qortoo
+          ref: ${{ fromJSON(needs.resolve.outputs.inputs).siteSha }}
+          path: site
+          persist-credentials: false
+      - name: Check out Rust SDK
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ fromJSON(needs.resolve.outputs.inputs).sources.rust.repository }}
+          ref: ${{ fromJSON(needs.resolve.outputs.inputs).sources.rust.sha }}
+          path: qortoo-rs
+          persist-credentials: false
+      - name: Check out Go SDK
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ fromJSON(needs.resolve.outputs.inputs).sources.go.repository }}
+          ref: ${{ fromJSON(needs.resolve.outputs.inputs).sources.go.sha }}
+          path: qortoo-go
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: site/.node-version
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - name: Pin npm version
+        run: npm install --global npm@11.20.0
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.27.2'
+          cache: false
+      - name: Set up Rust for API documentation
+        run: |
+          rustup toolchain install 1.97.1 --profile minimal
+          rustup default 1.97.1
+      - name: Install dependencies
+        run: npm ci
+      - name: Check document transformations
+        run: npm test
+      - name: Build with SDK asset fixtures
+        run: npm run check:fixture
+      - name: Build SDK documentation
+        run: npm run build
+      - name: Check types
+        run: npm run check:types
+      - name: Check exported pages and links
+        run: npm run check:export
+      - name: Verify exact build inputs
+        run: node scripts/check-docs-inputs.mjs
+      - name: Upload GitHub Pages artifact
+        if: inputs.upload_pages && inputs.candidate_sdk == '' && github.repository == 'qortoo/qortoo' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site/out
+      - name: Record successful build
+        id: complete
+        run: echo 'built=true' >> "$GITHUB_OUTPUT"

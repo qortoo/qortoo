@@ -36,7 +36,7 @@ export function resolveTarget(source, file, url, sources) {
   if (/^https:\/\/github\.com\//.test(url)) {
     const match = url.match(/^https:\/\/github\.com\/([^/]+\/[^/]+)\/blob\/([^/]+)\/([^?#]+)(.*)$/);
     if (!match) return null;
-    targetSource = sources.find((s) => s.repository === match[1]);
+    targetSource = sources.find((s) => s.repository === match[1] || s.upstreamRepository === match[1]);
     if (!targetSource || !['main', targetSource.ref, targetSource.sha].includes(match[2])) return null;
     rawPath = match[3]; suffix = match[4];
   } else if (/^[a-z][a-z\d+.-]*:/i.test(url)) {

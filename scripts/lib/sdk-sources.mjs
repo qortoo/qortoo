@@ -7,11 +7,14 @@ export function loadSources(root, config, env = process.env) {
   return config.sources.map((definition) => {
     if (!/^[a-z][a-z0-9-]*$/.test(definition.id)) throw new Error(`Invalid source id: ${definition.id}`);
     const directory = path.resolve(root, env[definition.directoryEnv] ?? definition.directory);
+    const repository = env[definition.repositoryEnv] ?? definition.repository;
+    if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(repository)) throw new Error('Invalid SDK repository');
     const ref = env[definition.refEnv] ?? definition.ref;
     const sha = git(directory, 'rev-parse', '--verify', `${ref}^{commit}`);
     const entries = execFileSync('git', ['-C', directory, 'ls-tree', '-r', '-z', sha], { encoding: 'utf8' }).split('\0').filter(Boolean);
     const files = new Set(entries.filter((entry) => /^100(?:644|755) blob /.test(entry)).map((entry) => entry.slice(entry.indexOf('\t') + 1)));
-    return { ...definition, directory, ref, sha, files, dirtyDocs: git(directory, 'status', '--porcelain', '--', 'docs') !== '' };
+    const editRef = repository === definition.repository ? definition.ref : ref;
+    return { ...definition, repository, upstreamRepository: definition.repository, directory, ref, editRef, sha, files, dirtyDocs: git(directory, 'status', '--porcelain', '--', 'docs') !== '' };
   });
 }
 export async function readSource(source, file, worktree) {

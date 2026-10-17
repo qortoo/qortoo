@@ -21,6 +21,14 @@ test('pinned historical links and external URLs retain their original meaning', 
   assert.match(body, /https:\/\/example.com\/docs\/start.md/);
 });
 
+test('candidate fork source links use the fork while upstream guide links remain internal', () => {
+  const fork = { ...rust, repository: 'contributor/qortoo-rs', upstreamRepository: rust.repository };
+  const raw = '# Start\n\n[Guide](https://github.com/qortoo/qortoo-rs/blob/main/docs/README.md) [Code](../src/lib.rs)';
+  const result = transformDocument(raw, analyzeDocument(raw), fork, 'docs/start.md', [fork, go]);
+  assert.match(result.body, /\[Guide\]\(\/docs\/rust\/\)/);
+  assert.ok(result.body.includes(`https://github.com/contributor/qortoo-rs/blob/${rust.sha}/src/lib.rs`));
+});
+
 test('asset URLs preserve references shared by images and downloads', () => {
   const { body, assets } = transform('# Start\n\n![A](images/chart.svg) [Data](data.json) ![B][chart] [Download][chart]\n\n[chart]: images/chart.svg');
   assert.equal(assets.size, 2);
