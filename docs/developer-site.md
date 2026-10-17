@@ -4,6 +4,9 @@ The website renders documentation owned by the SDK repositories. SDK Markdown st
 in those repositories so changes to code and its documentation can be reviewed together.
 Generated content, dependencies, and exported HTML are ignored by Git.
 
+See [SDK documentation workflows](sdk-documentation-workflows.md) for the Rust and
+Go event filters, candidate validation, publication permissions, and recovery steps.
+
 ## Local development
 
 Run the commands below from the repository root; paths in this guide are relative to it.
@@ -176,11 +179,13 @@ push changes documentation, API sources, or related build inputs. Their separate
 workflow on `main`. It does not check out SDK code. PR jobs only validate the
 candidate and cannot enter this job. There is no scheduled polling.
 
-Configure an Actions secret named `DOCS_SITE_DISPATCH_TOKEN` for both SDK
+Configure an Actions secret named `WORKFLOW_PAT` for both SDK
 repositories, either as repository secrets or an organization secret restricted
-to those repositories. Use a fine-grained token restricted to `qortoo/qortoo`,
-with **Actions: read and write**; Contents write and Pages permissions are not
-needed. A GitHub App installation token with the same repository permission can
+to those repositories. The token must include `qortoo/qortoo` with
+**Actions: read and write**. Website dispatch does not require Contents write or
+Pages permissions. When reusing the Go Canary token, retain its Contents and
+Workflows write permissions for `qortoo/qortoo-go` as well.
+A GitHub App installation token with the same repository permission can
 also call this endpoint. The ordinary SDK `GITHUB_TOKEN` does not grant write
 access to the website repository. Do not pass this secret to PR validation.
 The refresh job fails explicitly if the secret is missing or the dispatch fails.
@@ -199,6 +204,8 @@ builds and deployments can be retried from Actions.
 
 After deployment, the workflow checks the public manifest against the validated
 website, guide and API commits, retrying while publication becomes visible.
+This verification happens after deployment; a failed check does not automatically
+roll back the published site. Inspect the public manifest before choosing a retry.
 Candidate manual runs use a separate concurrency group so they do not cancel a
 publication in progress.
 
