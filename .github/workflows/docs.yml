@@ -6,91 +6,40 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      candidate_sdk:
+        description: Validate an SDK candidate without publishing (none refreshes main)
+        type: choice
+        options: [none, rust, go]
+        default: none
+      candidate_repository:
+        description: Candidate owner/repository, including a fork
+        type: string
+        default: ''
+      candidate_sha:
+        description: Full candidate commit SHA
+        type: string
+        default: ''
 
 permissions:
   contents: read
 
 concurrency:
-  group: docs-${{ github.workflow }}-${{ github.ref }}
+  group: docs-${{ github.workflow }}-${{ github.ref }}-${{ (inputs.candidate_sdk == 'rust' || inputs.candidate_sdk == 'go') && format('candidate-{0}-{1}', inputs.candidate_sdk, inputs.candidate_sha) || 'publication' }}
   cancel-in-progress: true
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    defaults:
-      run:
-        working-directory: site
-    env:
-      NEXT_TELEMETRY_DISABLED: '1'
-    steps:
-      - name: Check out website
-        uses: actions/checkout@v7
-        with:
-          path: site
-          persist-credentials: false
-      - name: Set up Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version-file: site/.node-version
-          cache: npm
-          cache-dependency-path: site/package-lock.json
-      - name: Pin npm version
-        run: npm install --global npm@11.20.0
-      - name: Read SDK source configuration
-        id: sources
-        run: |
-          node --input-type=module <<'JS'
-          import config from './docs-sources.json' with { type: 'json' };
-          import { appendFileSync } from 'node:fs';
-          for (const source of config.sources) {
-            if (!['rust', 'go'].includes(source.id) || /[\r\n]/.test(source.ref + source.repository)) throw new Error('Invalid SDK source');
-            appendFileSync(process.env.GITHUB_OUTPUT, `${source.id}-repository=${source.repository}\n${source.id}-ref=${source.ref}\n`);
-          }
-          JS
-      - name: Check out Rust SDK
-        uses: actions/checkout@v7
-        with:
-          repository: ${{ steps.sources.outputs.rust-repository }}
-          ref: ${{ steps.sources.outputs.rust-ref }}
-          path: qortoo-rs
-          persist-credentials: false
-      - name: Check out Go SDK
-        uses: actions/checkout@v7
-        with:
-          repository: ${{ steps.sources.outputs.go-repository }}
-          ref: ${{ steps.sources.outputs.go-ref }}
-          path: qortoo-go
-          persist-credentials: false
-      - name: Set up Go for API extraction
-        uses: actions/setup-go@v7
-        with:
-          go-version: '1.27.2'
-          cache: false
-      - name: Set up Rust for API documentation
-        run: |
-          rustup toolchain install 1.97.1 --profile minimal
-          rustup default 1.97.1
-      - name: Install dependencies
-        run: npm ci
-      - name: Check document transformations
-        run: npm test
-      - name: Build with SDK asset fixtures
-        run: npm run check:fixture
-      - name: Build SDK documentation
-        run: npm run build
-      - name: Check types
-        run: npm run check:types
-      - name: Check exported pages and links
-        run: npm run check:export
-      - name: Upload GitHub Pages artifact
-        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: site/out
+    uses: ./.github/workflows/build-docs.yml
+    with:
+      site_ref: ${{ github.sha }}
+      candidate_sdk: ${{ inputs.candidate_sdk != 'none' && inputs.candidate_sdk || '' }}
+      candidate_repository: ${{ inputs.candidate_repository || '' }}
+      candidate_sha: ${{ inputs.candidate_sha || '' }}
+      upload_pages: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (inputs.candidate_sdk == '' || inputs.candidate_sdk == 'none') }}
 
   deploy:
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: needs.build.outputs.built == 'true' && github.repository == 'qortoo/qortoo' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (inputs.candidate_sdk == '' || inputs.candidate_sdk == 'none')
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -106,3 +55,32 @@ jobs:
       - name: Deploy GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+      - name: Verify public documentation revisions
+        uses: actions/github-script@v8
+        env:
+          DOCS_INPUTS: ${{ needs.build.outputs.inputs }}
+        with:
+          script: |
+            const expected = JSON.parse(process.env.DOCS_INPUTS);
+            const url = `https://qortoo.github.io/qortoo/generated/sources.json?run=${context.runId}&attempt=${context.runAttempt}`;
+            for (let attempt = 0; attempt < 6; attempt++) {
+              try {
+                const response = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(15000) });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const actual = await response.json();
+                const matches = actual.mode === 'committed' && !actual.site.dirty && actual.site.sha === expected.siteSha &&
+                  Object.entries(expected.sources).every(([id, source]) => {
+                    const guide = actual.sources.find(s => s.id === id);
+                    return guide?.sha === source.sha && guide?.repository === source.repository && actual.api[id]?.sha === source.sha;
+                  });
+                if (matches) {
+                  core.info('Public guides and APIs match the deployed website and SDK commits.');
+                  return;
+                }
+                core.info('Waiting for the public manifest to match the deployment.');
+              } catch (error) {
+                core.info(`Public manifest not ready: ${error.message}`);
+              }
+              if (attempt < 5) await new Promise(resolve => setTimeout(resolve, 10000));
+            }
+            core.setFailed('Public documentation revisions do not match the validated build.');

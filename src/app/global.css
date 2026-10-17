@@ -112,7 +112,7 @@ html > body[data-scroll-locked] { margin-right: 0 !important; --removed-body-scr
 .prose a:not([href^='#']) { text-underline-offset: 3px; }
 .diagram-frame { margin: 24px 0; border: 1px solid var(--color-fd-border); border-radius: 8px; overflow: hidden; }
 .diagram-scroll { overflow-x: auto; padding: 20px; }
-.diagram-scroll svg { display: block; max-width: none !important; margin-inline: auto; }
+.diagram-scroll svg { display: block; height: auto; max-width: none !important; margin-inline: auto; }
 .diagram-frame details { border-top: 1px solid var(--color-fd-border); font-size: .7rem; color: var(--color-fd-muted-foreground); padding: 10px 14px; }
 .diagram-frame summary { cursor: pointer; }
 .diagram-frame details pre { overflow-x: auto; font-size: .7rem; }

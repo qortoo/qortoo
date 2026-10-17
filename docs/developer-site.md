@@ -38,6 +38,11 @@ Override a source revision when reviewing a particular change:
 QORTOO_RS_REF=HEAD QORTOO_GO_REF=HEAD npm run build
 ```
 
+For a fork candidate, set `QORTOO_RS_REPOSITORY=owner/qortoo-rs` or
+`QORTOO_GO_REPOSITORY=owner/qortoo-go` as well as the directory and commit ref.
+Source links then identify the fork's exact commit. Links to the upstream SDK's
+current guides still resolve inside the portal.
+
 `out/generated/sources.json` records the build time, site and SDK revisions, source
 file hashes, asset hashes, and local documentation changes. For a preview of tracked
 document edits:
@@ -60,6 +65,11 @@ SDK pages remain `.md`; they do not need React syntax or YAML frontmatter. Site-
 introduction and API guidance live in `site-content/docs/`. Homepage examples are
 extracted from SDK getting started guides. Change SDK behavior explanations in the
 owning SDK repository; change navigation and presentation in this repository.
+
+Diagrams use SVG text labels. The renderer fits a diagram to the available width
+when it needs at most 15% reduction, preserves its aspect ratio, and recalculates
+on resize. Smaller diagrams retain their original size; wider diagrams retain
+their original size and keyboard-accessible horizontal scrolling for readability.
 
 ## Validation
 
@@ -131,7 +141,70 @@ Settings → Pages before the first deployment. The intended public URL is
 `out/` as an artifact; it does not commit generated HTML to `main` or a `gh-pages`
 branch. A failed build never reaches deployment.
 
-The workflow resolves SDK refs at build time. SDK changes do not automatically
-trigger this repository's workflow yet; manually dispatch the workflow after an SDK
-update. Candidate SDK PR validation and automatic cross-repository triggers are
-separate follow-up work.
+## SDK pull request validation
+
+The SDKs' **Developer website** workflows call this repository's read-only
+`build-docs.yml` workflow. Each call supplies its PR head repository and full SHA,
+including fork heads. The resolver checks them against the originating PR event.
+The selected SDK uses that commit; the other SDK uses its configured default ref.
+All refs, including the website, resolve to immutable SHAs before the build job
+checks out any candidate code. Guides and API references use the same SDK SHA.
+
+Candidate runs build fixtures, guides, APIs, types, and internal links. They have
+`contents: read`, do not inherit secrets, and do not upload a Pages artifact or enter
+the deployment job. Rust documentation generation can execute candidate build
+scripts, so validation stays on hosted runners with no deployment credentials.
+The workflow uses `pull_request`; it does not run candidate code under
+`pull_request_target` or a privileged `workflow_run` follow-up.
+
+The SDK callers follow the centrally maintained workflow on `qortoo/main`. Each
+run records the resolved website and SDK commits in its job summary and in
+`out/generated/sources.json`, including its Actions run URL. Changing prose or API
+comments in an SDK does not require editing a website component.
+
+To validate a candidate manually, run **Documentation** from this repository's
+Actions tab, choose `rust` or `go`, and enter its repository and full SHA. This
+validation does not publish. For local validation, use the matching repository
+checkout and the directory/ref/repository environment variables above, then run
+the commands in **Validation**. Do not use worktree mode to validate a commit.
+
+## Automatic updates and recovery
+
+The SDKs' **Developer website** workflows request a website refresh when a `main`
+push changes documentation, API sources, or related build inputs. Their separate
+`refresh` job calls `workflow_dispatch` for `qortoo/qortoo`'s **Documentation**
+workflow on `main`. It does not check out SDK code. PR jobs only validate the
+candidate and cannot enter this job. There is no scheduled polling.
+
+Configure an Actions secret named `DOCS_SITE_DISPATCH_TOKEN` for both SDK
+repositories, either as repository secrets or an organization secret restricted
+to those repositories. Use a fine-grained token restricted to `qortoo/qortoo`,
+with **Actions: read and write**; Contents write and Pages permissions are not
+needed. A GitHub App installation token with the same repository permission can
+also call this endpoint. The ordinary SDK `GITHUB_TOKEN` does not grant write
+access to the website repository. Do not pass this secret to PR validation.
+The refresh job fails explicitly if the secret is missing or the dispatch fails.
+
+The website resolves both SDK default refs when it receives the request. This
+publishes their latest committed guides and API references together, even when
+two SDK merges produce requests in a different order. A successful dispatch means
+the website run was requested; confirm its build/deploy result and public manifest
+separately. The SDK job logs the website run URL when returned by GitHub.
+
+To retry, manually run **Developer website** on `main` in an SDK, or run
+**Documentation** on `main` in the website with candidate SDK set to `none`.
+Only successful, non-candidate `main` push or manual runs can upload and deploy a
+Pages artifact. A failed build leaves the existing public site in place. Failed
+builds and deployments can be retried from Actions.
+
+After deployment, the workflow checks the public manifest against the validated
+website, guide and API commits, retrying while publication becomes visible.
+Candidate manual runs use a separate concurrency group so they do not cancel a
+publication in progress.
+
+When integrating this automation, merge the `qortoo` reusable workflow before
+merging the SDK caller workflows, and configure the dispatch secret. Verify a successful SDK candidate run and a
+failing candidate run, then verify the post-merge refresh and public manifest.
+Making the SDK validation check required in branch protection is a separate
+repository setting. Local checks establish build behavior; they do not establish
+that the workflows have been activated or that publication succeeded.

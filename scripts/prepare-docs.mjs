@@ -22,6 +22,12 @@ const manifest = {
   builtAt: new Date().toISOString(), basePath: siteConfig.basePath,
   mode: worktree ? 'worktree' : 'committed', sources: [], pages: [], assets: [], examples: {}, api: {},
 };
+if (process.env.DOCS_INPUTS) manifest.automation = {
+  inputs: JSON.parse(process.env.DOCS_INPUTS),
+  runUrl: process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID
+    ? `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : undefined,
+  runAttempt: process.env.GITHUB_RUN_ATTEMPT,
+};
 const assets = new Map();
 const urls = new Set();
 await rm(content, { recursive: true, force: true });
@@ -50,7 +56,7 @@ for (const source of sources) {
     await mkdir(path.dirname(output), { recursive: true });
     await writeFile(output, `---\ntitle: ${JSON.stringify(analysis.title)}\n---\n${result.body}`);
     const sourceUrl = `https://github.com/${source.repository}/blob/${source.sha}/${file}`;
-    manifest.pages.push({ url, title: analysis.title, sdk: source.id, file, h1Anchor: analysis.h1Anchor, sourceUrl, editUrl: `https://github.com/${source.repository}/edit/${encodeURIComponent(source.ref)}/${file}`, ...analysis.counts });
+    manifest.pages.push({ url, title: analysis.title, sdk: source.id, file, h1Anchor: analysis.h1Anchor, sourceUrl, editUrl: `https://github.com/${source.repository}/edit/${encodeURIComponent(source.editRef)}/${file}`, ...analysis.counts });
     inventory.files.push({ path: file, sha256: sha256(raw) });
     for (const count of ['mermaid', 'tables', 'images']) inventory[count] += analysis.counts[count];
     inventory.rewrittenLinks += result.rewrittenLinks;

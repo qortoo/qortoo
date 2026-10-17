@@ -9,7 +9,15 @@ function draw(chart: string, dark: boolean) {
   // Mermaid has global configuration; serialize configuration and rendering together.
   const task = renderQueue.then(async () => {
     const { default: mermaid } = await import('mermaid');
-    mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: dark ? 'dark' : 'default', fontFamily: 'inherit' });
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: 'strict',
+      theme: dark ? 'dark' : 'default',
+      // SVG labels avoid HTML reflow after Mermaid measures its temporary diagram.
+      htmlLabels: false,
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      flowchart: { wrappingWidth: 480 },
+    });
     return mermaid.render(`qortoo-diagram-${diagramId++}`, chart);
   });
   renderQueue = task.catch(() => undefined);
@@ -24,16 +32,28 @@ export function Mermaid({ chart }: { chart: string }) {
 
   useEffect(() => {
     let cancelled = false;
+    let observer: ResizeObserver | undefined;
     setError(undefined);
     setReady(false);
     void draw(chart, resolvedTheme === 'dark').then(({ svg }) => {
       if (cancelled || !ref.current) return;
       ref.current.innerHTML = svg;
       const element = ref.current.querySelector('svg');
-      if (element?.viewBox.baseVal.width) element.style.width = `${element.viewBox.baseVal.width}px`;
+      const intrinsicWidth = element?.viewBox.baseVal.width;
+      if (element && intrinsicWidth) {
+        const fit = (availableWidth: number) => {
+          const scale = availableWidth / intrinsicWidth;
+          // Shrink only when this removes scrolling without reducing text by over 15%.
+          const width = scale >= 0.85 && scale < 1 ? Math.floor(availableWidth) : intrinsicWidth;
+          element.style.width = `${width}px`;
+        };
+        fit(ref.current.clientWidth);
+        observer = new ResizeObserver(([entry]) => fit(entry.contentRect.width));
+        observer.observe(ref.current);
+      }
       setReady(true);
     }).catch((cause) => { if (!cancelled) setError(String(cause)); });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; observer?.disconnect(); };
   }, [chart, resolvedTheme]);
 
   return <figure className="diagram-frame" aria-label="Diagram" aria-busy={!ready && !error}>
