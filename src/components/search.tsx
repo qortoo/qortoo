@@ -1,4 +1,5 @@
 'use client';
+import site from '../../site.config.json';
 import {
   SearchDialog,
   SearchDialogClose,
@@ -17,7 +18,7 @@ export default function DefaultSearchDialog(props: SharedProps) {
   const { locale } = useI18n(); // (optional) for i18n
   const search = useStaticSearch({
     locale,
-    from: "/qortoo/api/search",
+    from: `${site.basePath}/api/search`,
   });
 
   return (

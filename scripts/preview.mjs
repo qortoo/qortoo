@@ -1,14 +1,16 @@
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
+import site from '../site.config.json' with { type: 'json' };
+const basePath = site.basePath;
 
 const output = path.resolve('out');
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.txt': 'text/plain', '.woff2': 'font/woff2' };
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
-  if (url.pathname === '/qortoo') { res.writeHead(308, { Location: '/qortoo/' }); res.end(); return; }
-  if (!url.pathname.startsWith('/qortoo/')) { res.writeHead(404); res.end('Not found'); return; }
-  let file = path.resolve(output, '.' + decodeURIComponent(url.pathname.slice('/qortoo'.length)));
+  if (url.pathname === basePath) { res.writeHead(308, { Location: basePath + '/' }); res.end(); return; }
+  if (!url.pathname.startsWith(basePath + '/')) { res.writeHead(404); res.end('Not found'); return; }
+  let file = path.resolve(output, '.' + decodeURIComponent(url.pathname.slice(basePath.length)));
   if (file !== output && !file.startsWith(output + path.sep)) { res.writeHead(404); res.end(); return; }
   try {
     const info = await stat(file);
@@ -19,4 +21,4 @@ const server = createServer(async (req, res) => {
     res.end(data);
   } catch { res.writeHead(404); res.end('Not found'); }
 });
-server.listen(4173, '127.0.0.1', () => console.log('Local: http://127.0.0.1:4173/qortoo/'));
+server.listen(4173, '127.0.0.1', () => console.log(`Local: http://127.0.0.1:4173${basePath}/`));
