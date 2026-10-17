@@ -49,8 +49,13 @@ for file, page in pages.items():
             target /= 'index.html'
         if not target.is_file():
             errors.append(f'{relative}: missing target: {link}')
-        elif url.fragment and target in pages and unquote(url.fragment) not in pages[target].ids:
-            errors.append(f'{relative}: missing anchor: {link}')
+        elif url.fragment and target in pages:
+            # Generated API member IDs can contain literal percent escapes.
+            ids = pages[target].ids
+            fragment = unquote(url.fragment)
+            valid = url.fragment in ids or fragment in ids
+            if not valid:
+                errors.append(f'{relative}: missing anchor: {link}')
         checked += 1
 
 for page in manifest['pages']:
@@ -65,6 +70,21 @@ expected_tables = sum(s['tables'] for s in manifest['sources'])
 actual_tables = sum(pages[root / p['url'].strip('/') / 'index.html'].tables for p in manifest['pages'] if root / p['url'].strip('/') / 'index.html' in pages)
 if actual_tables != expected_tables:
     errors.append(f'Table count differs: {actual_tables} != {expected_tables}')
+for language, api in manifest.get('api', {}).items():
+    source = next(s for s in manifest['sources'] if s['id'] == language)
+    if api['sha'] != source['sha']:
+        errors.append(f'API revision differs from guides: {language}')
+    target = root / api['url'].lstrip('/')
+    if target.is_dir():
+        target /= 'index.html'
+    if not target.is_file():
+        errors.append(f'Missing API reference: {language}')
+    for page in api.get('pages', []):
+        target = root / page['url'].strip('/') / 'index.html'
+        if target not in pages:
+            errors.append(f'Missing API page: {page["url"]}')
+if 'rust' not in manifest.get('api', {}):
+    errors.append('Rust API has not been built; run npm run build')
 for asset in manifest['assets']:
     if not (root / asset['path']).is_file():
         errors.append(f'Missing SDK asset: {asset["path"]}')
@@ -76,7 +96,7 @@ if not search:
 if not any(s['id'] == 'fixture' for s in manifest['sources']):
     if (root / 'docs/fixture').exists() or 'Fixture Start' in json.dumps(search):
         errors.append('SDK fixture leaked into public documentation or search')
-print(json.dumps({'sdk_pages': len(manifest['pages']), 'tables': actual_tables,
+print(json.dumps({'sdk_pages': len(manifest['pages']), 'api_pages': sum(len(api.get('pages', [api])) for api in manifest.get('api', {}).values()), 'tables': actual_tables,
                   'mermaid_blocks': sum(p.diagrams for p in pages.values()),
                   'local_links_and_assets': checked, 'errors': errors}, indent=2))
 raise SystemExit(bool(errors))

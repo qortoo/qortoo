@@ -8,7 +8,7 @@ Generated content, dependencies, and exported HTML are ignored by Git.
 
 Run the commands below from the repository root; paths in this guide are relative to it.
 
-Use Node.js 26.12.0 (see `.node-version`), npm 11.20.0, Python 3, and Git. Place
+Use Node.js 26.12.0 (see `.node-version`), npm 11.20.0, Python 3, Git, Rust 1.97.1, and Go 1.27.2. Place
 `qortoo-rs` and `qortoo-go` beside this checkout, or set `QORTOO_RS_DIR` and
 `QORTOO_GO_DIR` to their checkout paths.
 
@@ -76,8 +76,62 @@ images, downloadable assets, and heading anchors through the production build.
 Run the normal build afterward to restore the public documentation output.
 Fixtures are not included in normal navigation or search.
 
-The Documentation workflow checks source transformations, fixture builds, static
-export, types, and internal links for pull requests and pushes to `main`. It uses
-read-only repository permissions and does not deploy the site.
+## API references
 
-API reference integration and remote deployment are not configured yet.
+`npm run build` collects guides, extracts Go API declarations, generates Rust API
+pages, and exports the complete website. `npm run dev` refreshes both API references
+before starting the development server.
+
+The Rust reference lives at `/qortoo/docs/rust-api/`, with individual pages for
+public types, traits, functions, constants, and aliases. It shares the portal's
+layout, navigation, themes, and search with the guides and Go reference.
+
+The generator uses `cargo doc --locked --no-deps -p qortoo --all-features`, including
+optional observability APIs. It converts the pinned compiler's stable rustdoc HTML
+to Markdown; it does not need nightly Rust or a separate Rust syntax parser. Member
+anchors and links between API pages are preserved, including rustdoc re-export
+redirects. Signatures and examples remain Rust code blocks. Source links point to
+the exact SDK commit and line range on GitHub. Related API links include types used
+in signatures. Dependency API pages remain external; an explicit map resolves
+known incomplete links in copied dependency comments using Cargo.lock versions.
+Missing local targets, unsupported pages, and conflicting routes fail the build.
+
+This presents rustdoc content within the portal. The portal's search replaces
+rustdoc's separate symbol/signature search; source browsing uses GitHub. Private
+SDK items are excluded by rustdoc's public-documentation policy.
+
+The Go reference lives at `/qortoo/docs/go-api/` and participates in the portal's
+search. A standard-library `go/parser` and `go/doc` extractor reads exported
+root-package declarations and comments for Linux/amd64 with cgo enabled. It respects
+build constraints, excludes tests and private declarations, and does not compile or
+load SDK dependencies. This works without native headers or libraries. Type and
+method sections include source links pinned to the collected SDK revision.
+
+Both extractors use temporary snapshots of the same committed revisions as the
+guides. Both API references are generated under ignored `content/` and exported
+under `out/docs/`. Intermediate rustdoc HTML and compilation caches live in ignored
+`.cache/`. Worktree previews affect guides only; API references still use
+the selected commit. `out/generated/sources.json` records each API revision and
+build policy. Generated API pages are not committed.
+
+The public pkg.go.dev package URL returned HTTP 404 during integration. The portal
+therefore serves its own Go reference and does not rely on external indexing.
+
+## GitHub Pages
+
+The Documentation workflow validates transformations, fixtures, types, and exported
+links on pull requests and pushes to `main`. The build job has read-only repository
+permissions. Only successful builds of `main` from push or manual dispatch upload a
+Pages artifact and enter the separate deployment job. That job alone requests
+`pages: write` and `id-token: write`, using the `github-pages` environment.
+
+Enable Pages with **GitHub Actions** as the publishing source in the repository's
+Settings → Pages before the first deployment. The intended public URL is
+`https://qortoo.github.io/qortoo/`, matching `site.config.json`. Deployment publishes
+`out/` as an artifact; it does not commit generated HTML to `main` or a `gh-pages`
+branch. A failed build never reaches deployment.
+
+The workflow resolves SDK refs at build time. SDK changes do not automatically
+trigger this repository's workflow yet; manually dispatch the workflow after an SDK
+update. Candidate SDK PR validation and automatic cross-repository triggers are
+separate follow-up work.

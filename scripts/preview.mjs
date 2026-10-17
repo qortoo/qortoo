@@ -5,7 +5,7 @@ import site from '../site.config.json' with { type: 'json' };
 const basePath = site.basePath;
 
 const output = path.resolve('out');
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.txt': 'text/plain', '.woff2': 'font/woff2' };
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml', '.txt': 'text/plain', '.woff2': 'font/woff2', '.png': 'image/png', '.woff': 'font/woff' };
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname === basePath) { res.writeHead(308, { Location: basePath + '/' }); res.end(); return; }

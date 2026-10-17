@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process';
+import { withSnapshot } from './lib/api-sources.mjs';
 import { createHash } from 'node:crypto';
 import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -18,7 +20,7 @@ const json = (data) => JSON.stringify(data, null, 2) + '\n';
 const manifest = {
   site: { sha: git(root, 'rev-parse', 'HEAD'), dirty: git(root, 'status', '--porcelain') !== '' },
   builtAt: new Date().toISOString(), basePath: siteConfig.basePath,
-  mode: worktree ? 'worktree' : 'committed', sources: [], pages: [], assets: [], examples: {},
+  mode: worktree ? 'worktree' : 'committed', sources: [], pages: [], assets: [], examples: {}, api: {},
 };
 const assets = new Map();
 const urls = new Set();
@@ -64,5 +66,11 @@ for (const [key, asset] of assets) {
   await writeFile(destination, data);
   manifest.assets.push({ path: `generated/assets/${key}`, sha256: sha256(data) });
 }
+const go = sources.find((source) => source.id === 'go');
+await withSnapshot(go, async (directory) => {
+  const markdown = execFileSync('go', ['run', path.join(root, 'scripts/go-api/main.go'), directory, `https://github.com/${go.repository}/blob/${go.sha}`], { encoding: 'utf8', cwd: root, maxBuffer: 16 * 1024 * 1024 });
+  await writeFile(path.join(content, 'go-api.md'), markdown);
+});
+manifest.api.go = { sha: go.sha, url: '/docs/go-api/', platform: 'linux/amd64', cgo: true };
 await writeFile(path.join(generated, 'sources.json'), json(manifest));
 console.log(json({ mode: manifest.mode, sources: manifest.sources.map(({ files, ...s }) => ({ ...s, documents: files.length })), assets: manifest.assets.length }));
