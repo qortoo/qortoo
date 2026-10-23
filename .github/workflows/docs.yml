@@ -69,12 +69,16 @@ jobs:
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const actual = await response.json();
                 const matches = actual.mode === 'committed' && !actual.site.dirty && actual.site.sha === expected.siteSha &&
+                  actual.benchmarks?.revision === expected.benchmarks.revision && actual.benchmarks?.indexSha256 === expected.benchmarks.indexSha256 &&
                   Object.entries(expected.sources).every(([id, source]) => {
                     const guide = actual.sources.find(s => s.id === id);
                     return guide?.sha === source.sha && guide?.repository === source.repository && actual.api[id]?.sha === source.sha;
                   });
                 if (matches) {
-                  core.info('Public guides and APIs match the deployed website and SDK commits.');
+                  const performance = await fetch(`https://qortoo.github.io/qortoo/docs/performance/?run=${context.runId}`, { cache: 'no-store', signal: AbortSignal.timeout(15000) });
+                  const html = await performance.text();
+                  if (!performance.ok || !html.includes(expected.benchmarks.revision)) throw new Error('Public Performance page does not match benchmark snapshot');
+                  core.info('Public guides, APIs, and benchmark results match the resolved inputs.');
                   return;
                 }
                 core.info('Waiting for the public manifest to match the deployment.');

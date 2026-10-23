@@ -45,4 +45,7 @@ export function verifyBuild(inputs, manifest, { requireClean = false } = {}) {
       throw new Error(`Guide/API build does not match its resolved inputs: ${id}`);
     }
   }
+  if (inputs.benchmarks && (manifest.benchmarks?.repository !== inputs.benchmarks.repository || manifest.benchmarks?.revision !== inputs.benchmarks.revision || manifest.benchmarks?.indexSha256 !== inputs.benchmarks.indexSha256)) {
+    throw new Error('Benchmark build does not match its resolved inputs');
+  }
 }

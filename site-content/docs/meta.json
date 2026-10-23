@@ -5,6 +5,7 @@
     "rust",
     "go",
     "api",
+    "performance",
     "rust-api",
     "go-api"
   ]
