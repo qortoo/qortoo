@@ -18,3 +18,7 @@ Visit [qortoo.github.io/qortoo](https://qortoo.github.io/qortoo/) for SDK guides
 
 See the [developer site guide](docs/developer-site.md) for local development,
 documentation sources, and validation.
+
+The [Performance page](https://qortoo.github.io/qortoo/docs/performance/) displays
+official SDK benchmark results. See [benchmark result collection](docs/benchmark-results.md)
+for snapshot validation, measurement interpretation, and refresh/retry behavior.

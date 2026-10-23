@@ -85,6 +85,20 @@ for language, api in manifest.get('api', {}).items():
             errors.append(f'Missing API page: {page["url"]}')
 if 'rust' not in manifest.get('api', {}):
     errors.append('Rust API has not been built; run npm run build')
+benchmark_manifest = root / 'generated/benchmarks.json'
+performance = root / 'docs/performance/index.html'
+if not benchmark_manifest.is_file() or not performance.is_file():
+    errors.append('Missing Performance page or benchmark provenance')
+else:
+    benchmarks = json.loads(benchmark_manifest.read_text())
+    if benchmarks != manifest.get('benchmarks'):
+        errors.append('Benchmark provenance differs from the source manifest')
+    html = performance.read_text()
+    if benchmarks['revision'] not in html:
+        errors.append('Performance page does not identify its data revision')
+    for entry in benchmarks['latest']:
+        if entry['runId'] not in html or entry['seriesId'] not in html:
+            errors.append('Performance page is missing a selected result')
 for asset in manifest['assets']:
     if not (root / asset['path']).is_file():
         errors.append(f'Missing SDK asset: {asset["path"]}')

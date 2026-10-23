@@ -72,6 +72,8 @@ jobs:
       QORTOO_GO_REF: ${{ fromJSON(needs.resolve.outputs.inputs).sources.go.sha }}
       QORTOO_RS_REPOSITORY: ${{ fromJSON(needs.resolve.outputs.inputs).sources.rust.repository }}
       QORTOO_GO_REPOSITORY: ${{ fromJSON(needs.resolve.outputs.inputs).sources.go.repository }}
+      QORTOO_BENCH_DIR: ../qortoo-bench-data
+      QORTOO_BENCH_REF: ${{ fromJSON(needs.resolve.outputs.inputs).benchmarks.revision }}
     steps:
       - name: Check out website
         uses: actions/checkout@v7
@@ -99,6 +101,13 @@ jobs:
           node-version-file: site/.node-version
           cache: npm
           cache-dependency-path: site/package-lock.json
+      - name: Check out immutable benchmark data
+        uses: actions/checkout@v7
+        with:
+          repository: qortoo/qortoo-bench
+          ref: ${{ fromJSON(needs.resolve.outputs.inputs).benchmarks.revision }}
+          path: qortoo-bench-data
+          persist-credentials: false
       - name: Pin npm version
         run: npm install --global npm@11.20.0
       - uses: actions/setup-go@v7

@@ -7,6 +7,8 @@ import sourceConfig from '../docs-sources.json' with { type: 'json' };
 import siteConfig from '../site.config.json' with { type: 'json' };
 import { analyzeDocument, documentUrl, transformDocument, walk } from './lib/documents.mjs';
 import { git, loadSources, readSource } from './lib/sdk-sources.mjs';
+import { benchmarkProvenance, collectBenchmarks, gitSnapshot } from './lib/benchmark-sources.mjs';
+import { renderBenchmarkPage } from './lib/benchmark-page.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
 const content = path.join(root, 'content/docs');
@@ -78,5 +80,16 @@ await withSnapshot(go, async (directory) => {
   await writeFile(path.join(content, 'go-api.md'), markdown);
 });
 manifest.api.go = { sha: go.sha, url: '/docs/go-api/', platform: 'linux/amd64', cgo: true };
+const benchmarkDirectory = path.resolve(root, process.env.QORTOO_BENCH_DIR ?? '../qortoo-bench');
+const benchmarkRef = process.env.QORTOO_BENCH_REF ?? 'origin/bench-data';
+const benchmarkData = collectBenchmarks(gitSnapshot(benchmarkDirectory, benchmarkRef));
+manifest.benchmarks = benchmarkProvenance(benchmarkData);
+const expectedBenchmarks = manifest.automation?.inputs.benchmarks;
+if (expectedBenchmarks && (expectedBenchmarks.revision !== manifest.benchmarks.revision || expectedBenchmarks.indexSha256 !== manifest.benchmarks.indexSha256)) throw new Error('Benchmark snapshot differs from resolved inputs');
+const performance = renderBenchmarkPage(benchmarkData, manifest.sources);
+await writeFile(path.join(content, 'performance.mdx'), performance.markdown);
+await mkdir(path.join(generated, 'benchmarks'), { recursive: true });
+for (const asset of performance.assets) await writeFile(path.join(generated, asset.file), asset.content);
+await writeFile(path.join(generated, 'benchmarks.json'), json(manifest.benchmarks));
 await writeFile(path.join(generated, 'sources.json'), json(manifest));
 console.log(json({ mode: manifest.mode, sources: manifest.sources.map(({ files, ...s }) => ({ ...s, documents: files.length })), assets: manifest.assets.length }));
