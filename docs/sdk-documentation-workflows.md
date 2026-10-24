@@ -36,24 +36,23 @@ Both SDKs use `.github/workflows/developer-site.yml`, with the following behavio
 
 | Event | `validate` | `refresh` | Publication |
 | --- | --- | --- | --- |
-| Pull request targeting `main` | Build the exact PR head, including fork heads | Skipped | None |
+| Matching path in a pull request targeting `main` | Build the exact PR head, including fork heads | Skipped | None |
 | Matching path pushed to official SDK `main` | Skipped | Request website run | Separate website run |
 | Manual SDK run on official `main` | Skipped | Request website run | Separate website run |
 | Manual SDK run on another branch or repository | Skipped | Skipped | None |
 
-PR validation has no path filter. A new run for the same PR ref cancels its older
-in-progress run. Main refresh requests use a separate ref from PR validation.
+PR validation and main refresh use the same path filters. Documentation, API
+sources, their build inputs, referenced examples/tests, and this caller's workflow
+remain eligible. Metadata-only and unrelated workflow changes are skipped. The
+exact filters are maintained in the [Rust caller](https://github.com/qortoo/qortoo-rs/blob/main/.github/workflows/developer-site.yml)
+and [Go caller](https://github.com/qortoo/qortoo-go/blob/main/.github/workflows/developer-site.yml).
+PR filters use the full PR diff, so an unrelated commit on a PR that still includes
+documentation/API changes can start another validation.
 
-The push filters reflect each SDK's documentation and API inputs:
-
-| SDK | Paths that request a refresh on `main` |
-| --- | --- |
-| Rust | `docs/**`, `src/**`, `Cargo.toml`, `Cargo.lock`, `build.rs`, `examples/**`, `tests/**`, `scripts/**`, `qortoo-ffi/**`, `.github/workflows/developer-site.yml` |
-| Go | `docs/**`, `**/*.go`, `go.mod`, `go.sum`, `examples/**`, `scripts/**`, `.github/workflows/developer-site.yml` |
-
-A push changing only root `README.md` or `CONTRIBUTING.md` does not request a
-refresh. Use a manual run when publication is needed outside these filters.
-There is no scheduled polling or automatic retry after a failed request.
+A new run for the same PR ref cancels its older in-progress run. Main refresh
+requests use a separate ref from PR validation. Manual runs remain available for
+publication outside the filters. There is no scheduled polling or automatic retry
+after a failed request.
 
 ### Candidate validation
 
