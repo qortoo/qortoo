@@ -3,8 +3,26 @@ name: Documentation
 on:
   pull_request:
     branches: [main]
+    # Operational docs and repository metadata are not published site inputs.
+    paths-ignore:
+      - 'docs/**'
+      - 'README.md'
+      - 'AGENTS.md'
+      - 'LICENSE'
+      - '.github/CODEOWNERS'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/workflows/assign-author.yml'
   push:
     branches: [main]
+    # Operational docs and repository metadata are not published site inputs.
+    paths-ignore:
+      - 'docs/**'
+      - 'README.md'
+      - 'AGENTS.md'
+      - 'LICENSE'
+      - '.github/CODEOWNERS'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/workflows/assign-author.yml'
   workflow_dispatch:
     inputs:
       candidate_sdk:

@@ -133,8 +133,12 @@ therefore serves its own Go reference and does not rely on external indexing.
 ## GitHub Pages
 
 The Documentation workflow validates transformations, fixtures, types, and exported
-links on pull requests and pushes to `main`. The build job has read-only repository
-permissions. Only successful builds of `main` from push or manual dispatch upload a
+links on pull requests and pushes to `main`, excluding operational documentation
+and repository metadata-only changes through its [path filters](../.github/workflows/docs.yml).
+Published content in `site-content/docs/`, application code, assets, build settings,
+and tests remain eligible. Mixed changes run the workflow. Manual dispatches,
+including SDK and benchmark refresh requests, are unaffected by these filters.
+The build job has read-only repository permissions. Only successful builds of `main` from push or manual dispatch upload a
 Pages artifact and enter the separate deployment job. That job alone requests
 `pages: write` and `id-token: write`, using the `github-pages` environment.
 
