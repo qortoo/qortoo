@@ -6,7 +6,7 @@ import path from 'node:path';
 import sourceConfig from '../docs-sources.json' with { type: 'json' };
 import siteConfig from '../site.config.json' with { type: 'json' };
 import { analyzeDocument, documentUrl, transformDocument, walk } from './lib/documents.mjs';
-import { git, loadSources, readSource } from './lib/sdk-sources.mjs';
+import { git, loadSources, loadDeveloperSource, readSource } from './lib/sdk-sources.mjs';
 import { benchmarkProvenance, collectBenchmarks, gitSnapshot } from './lib/benchmark-sources.mjs';
 import { renderBenchmarkPage } from './lib/benchmark-page.mjs';
 
@@ -30,6 +30,7 @@ if (process.env.DOCS_INPUTS) manifest.automation = {
     ? `https://github.com/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : undefined,
   runAttempt: process.env.GITHUB_RUN_ATTEMPT,
 };
+sources.push(loadDeveloperSource(root, manifest.site.sha));
 const assets = new Map();
 const urls = new Set();
 await rm(content, { recursive: true, force: true });
@@ -65,7 +66,7 @@ for (const source of sources) {
   }
   if (!files.length) throw new Error(`No documents found: ${source.repository}`);
   manifest.sources.push(inventory);
-  await writeFile(path.join(content, source.id, 'meta.json'), json({ title: source.title, description: source.id === 'rust' ? 'Core implementation and Rust API' : 'Go bindings for the Rust core', root: true, pages: source.navigation }));
+  await writeFile(path.join(content, source.id, 'meta.json'), json({ title: source.title, description: source.description ?? (source.id === 'rust' ? 'Core implementation and Rust API' : 'Go bindings for the Rust core'), root: true, pages: source.navigation }));
 }
 for (const [key, asset] of assets) {
   const data = await readSource(asset.source, asset.file, worktree);

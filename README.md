@@ -14,6 +14,10 @@ and contribution guide.
 
 ## Developer website
 
+See [Repository workflows](docs/repository-workflows.md) for repository roles and
+the SDK validation, benchmark, and publication flow, or browse the published
+[Developer guides](https://qortoo.github.io/qortoo/docs/developer/).
+
 Visit [qortoo.github.io/qortoo](https://qortoo.github.io/qortoo/) for SDK guides and API references.
 
 See the [developer site guide](docs/developer-site.md) for local development,
