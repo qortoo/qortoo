@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { collectBenchmarks, digest, benchmarkProvenance } from '../scripts/lib/benchmark-sources.mjs';
 import { renderBenchmarkPage } from '../scripts/lib/benchmark-page.mjs';
+import { buildBenchmarkView, codeLinks, escapeHtml, makeLines, runAxis, shortDate, toRate } from '../src/lib/benchmark-view.mjs';
 import { verifyBuild } from '../scripts/lib/docs-automation.mjs';
 import { gitSnapshot } from '../scripts/lib/benchmark-sources.mjs';
 import { execFileSync } from 'node:child_process';
@@ -73,13 +74,84 @@ test('ineligible or malformed official summaries are rejected even with matching
   }
 });
 
-test('empty index renders explicit no-measurement state; data cannot inject MDX or SVG', () => {
+test('empty index renders explicit no-measurement state; data cannot inject MDX or chart markup', () => {
   const empty = collectBenchmarks(fixture({ empty: true }).snapshot);
   assert.match(renderBenchmarkPage(empty, []).markdown, /No official measurements/);
   const { snapshot } = fixture({ amend: s => { s.suites[0].scenarios[0].scenario_id = '<script>{x}</script>|'; } });
   const page = renderBenchmarkPage(collectBenchmarks(snapshot), []);
   assert.doesNotMatch(page.markdown, /<script>/);
   assert.doesNotMatch(page.assets[0].content, /<script>/);
+  assert.equal(JSON.parse(page.assets[0].content).topics[0].operations[0], '<script>{x}</script>|');
+});
+
+test('rate conversion and UTC labels preserve precision and reject invalid data', () => {
+  assert.equal(toRate(1000), 1_000_000);
+  assert.equal(toRate(3), 1e9 / 3);
+  for (const value of [0, -1, NaN, Infinity, Number.MIN_VALUE, '1000']) assert.throws(() => toRate(value), /finite ns\/op/);
+  assert.equal(shortDate('2027-01-01T00:30:00+09:00'), '12/31 15:30');
+  assert.equal(escapeHtml('<img onerror="x">'), '&lt;img onerror=&quot;x&quot;&gt;');
+  const data = collectBenchmarks(fixture().snapshot);
+  data.latest[0].points[0].summary.suites[0].scenarios[0].rust.median = 0;
+  assert.throws(() => buildBenchmarkView(data, []), /finite ns\/op/);
+});
+
+test('most measured environment precedes newer reference environments and retains publisher latest', () => {
+  const data = collectBenchmarks(fixture().snapshot);
+  const reference = structuredClone(data.latest[0]);
+  reference.seriesId = `official/counter/${'e'.repeat(64)}`;
+  reference.suite.series_id = reference.seriesId;
+  reference.summary.environment.cpu = 'Reference CPU';
+  reference.points = reference.points.slice(0, 1);
+  reference.points[0].summary.suites[0].series_id = reference.seriesId;
+  reference.points[0].summary.completed_at_utc = '2026-03-01T00:00:00Z';
+  data.latest.unshift(reference);
+  const topic = buildBenchmarkView(data, []).topics[0];
+  assert.equal(topic.groups[0].runs.length, 2);
+  assert.equal(topic.groups[1].runs.length, 1);
+  const lines = makeLines(topic, 'IncreaseBy');
+  assert.equal(lines.filter(line => line.environmentIndex === 0).length, 2);
+  assert.ok(lines.every(line => line.points.find(p => p.latest).run.id === '1-1'));
+  assert.deepEqual(runAxis(lines).map(run => run.id), ['1-1', '2-1']);
+  assert.equal(lines[0].points[0].stats.stddev, 5);
+});
+
+test('Variable retains all payloads as separate SDK lines on a shared run and revision axis', () => {
+  const data = collectBenchmarks(fixture().snapshot);
+  const group = data.latest[0];
+  group.seriesId = `official/variable/${checksum}`;
+  for (const point of group.points) {
+    const suite = point.summary.suites[0];
+    suite.series_id = group.seriesId;
+    suite.suite_id = 'variable';
+    suite.scenarios = ['64B', '1024B', '16384B'].map(payload => ({ ...structuredClone(suite.scenarios[0]), scenario_id: `Set-${payload}`, operation: 'Set', payload }));
+  }
+  group.suite = group.points[0].summary.suites[0];
+  const topic = buildBenchmarkView(data, []).topics[0];
+  const lines = makeLines(topic, 'Set');
+  assert.equal(lines.length, 6);
+  assert.equal(new Set(lines.map(line => line.id)).size, 6);
+  assert.equal(new Set(lines.map(line => line.name)).size, 6);
+  assert.deepEqual([...new Set(lines.map(line => line.payload))], ['64B', '1024B', '16384B']);
+  const axis = runAxis(lines);
+  assert.equal(axis.length, 2);
+  assert.equal(axis[0].sources.rust.sha, 'c'.repeat(40));
+  const conflicting = structuredClone(lines[0]);
+  conflicting.points[0].run.sources.go.sha = 'f'.repeat(40);
+  assert.throws(() => runAxis([...lines, conflicting]), /conflicting revisions/);
+});
+
+test('incompatible contracts render separate topics and workload links pin the measured harness', () => {
+  const data = collectBenchmarks(fixture().snapshot);
+  const different = structuredClone(data.latest[0]);
+  different.suite.series_definition.contract_sha256 = 'e'.repeat(64);
+  data.latest.push(different);
+  const page = renderBenchmarkPage(data, []);
+  assert.equal(JSON.parse(page.assets[0].content).topics.length, 2);
+  assert.match(page.markdown, /### Contract/);
+  assert.ok(page.markdown.includes(`/blob/${revision}/harnesses/rust/src/bin/counter.rs`));
+  assert.ok(page.markdown.includes(`/blob/${revision}/harnesses/go/counter.go`));
+  assert.ok(page.markdown.includes(`/blob/${revision}/contracts/counter.json`));
+  assert.ok(codeLinks(data.repository, 'variable', 'e'.repeat(40)).Rust.endsWith(`/blob/${'e'.repeat(40)}/harnesses/rust/src/bin/variable.rs`));
 });
 
 test('different toolchain conditions cannot be combined in one series', () => {

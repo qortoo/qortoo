@@ -44,6 +44,12 @@ SDK and Developer guides use an H1 title; React syntax and YAML frontmatter are
 not required. Keep referenced files in the source repository. Missing targets
 fail collection; source links point to the selected commit on GitHub.
 
+Documentation uses a single sidebar tree ordered by `site-content/docs/meta.json`:
+Overview, SDK guides, Developer guides, API reference, and Benchmarks. The documentation
+layout omits shared shortcut links to avoid duplicating tree destinations; the homepage
+keeps them in its header. Grouping and page titles do not change document URLs.
+Group labels use uppercase, bold accent text and a divider to distinguish them from links.
+
 ## Preview SDK changes
 
 By default, collection reads committed SDK guides and APIs from the configured

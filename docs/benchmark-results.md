@@ -21,20 +21,46 @@ The public Performance page must reference the same data commit.
 
 ## Reading results
 
-Tables show medians and standard deviations of ten round means in the declared
-metric unit. Charts and history tables use only the same series: CPU, OS,
-toolchain, contract, build settings, and metric identity remain separate.
-SDK commits vary within a series. The publisher's ancestry-aware latest pointer
-selects the current result; run completion order does not override that choice.
-Raw samples, execution logs, source commits, and measurement conditions remain
-linked. Hosted-runner variation means small differences alone are not proof of
-a regression. These SDK benchmarks do not measure server/network performance.
+Counter and Variable each offer operation tabs. Variable compares its serialized
+JSON payload sizes in one chart. The environment with the most retained official
+runs is enabled initially; reference environments can be enabled in the legend.
+Ties use the latest eligible measurement date, then the series ID. CPU, OS,
+toolchain, build settings, SDK path, and payload retain separate lines. Different
+workload contracts or measurement protocols render separate charts.
+
+Charts and current-value tables display `op/sec`, where higher is better:
+`1,000,000,000 / median_ns_per_op`, calculated before rounding. This is the inverse
+of a latency median, not a median of per-round throughput or a concurrent-load
+capacity test. Details retain the latency median and standard deviation in
+`ns/op` across ten measured round means; warmup is excluded. Standard deviation
+is not inverted into a throughput error bar or treated as tail latency.
+
+The X-axis follows run/attempt identity with equal spacing. Labels show short UTC
+measurement dates and the measured Rust/Go commits; dates are not an elapsed-time
+axis. Equal date labels do not merge runs. The range slider expands dense labels.
+Hover previews a point, and clicking retains its details. Keyboard controls and
+measurement selectors provide the same information without hovering. Tabs support
+arrow keys, Home, and End. Charts follow the document theme and container size.
+
+Diamonds mark publisher-selected current results. SDK ancestry selects the
+current result; run completion order does not override that choice. Descriptions
+link to the default environment's current Rust/Go workload code and contract,
+pinned to its measured harness commit. Individual measurement details retain
+their own pinned code links, raw samples, execution logs, source commits, and
+conditions. Hosted-runner variation means small differences alone are not proof
+of a regression. These SDK benchmarks do not measure server/network performance.
 
 The page explicitly identifies SDK revisions that differ from the documentation
 build. It shows the latest registered main request per SDK by attempt order.
 Failures retain previously published values and their dates. An empty official
 index produces a no-measurement state. PR candidates, smoke, exploratory, and
 dirty runs never supply public current values.
+
+Interactive chart inputs are derived from the verified build snapshot under
+`generated/benchmarks/view.json`. The MDX page passes the selected topic to a
+client component; it does not fetch live GitHub data. ECharts is loaded when the
+chart renders, using only the required chart, interaction, and SVG modules.
+Current-value tables and source links are included in the static export.
 
 ## Refresh and retry
 

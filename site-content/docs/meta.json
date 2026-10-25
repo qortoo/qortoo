@@ -2,12 +2,16 @@
   "title": "Documentation",
   "pages": [
     "index",
+    "---SDK guides---",
     "rust",
     "go",
+    "---Developer guides---",
     "developer",
+    "---API reference---",
     "api",
-    "performance",
     "rust-api",
-    "go-api"
+    "go-api",
+    "---Benchmarks---",
+    "performance"
   ]
 }
