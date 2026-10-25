@@ -3,8 +3,24 @@ name: Documentation
 on:
   pull_request:
     branches: [main]
+    # Repository metadata is not published site content.
+    paths-ignore:
+      - 'README.md'
+      - 'AGENTS.md'
+      - 'LICENSE'
+      - '.github/CODEOWNERS'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/workflows/assign-author.yml'
   push:
     branches: [main]
+    # Repository metadata is not published site content.
+    paths-ignore:
+      - 'README.md'
+      - 'AGENTS.md'
+      - 'LICENSE'
+      - '.github/CODEOWNERS'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/workflows/assign-author.yml'
   workflow_dispatch:
     inputs:
       candidate_sdk:

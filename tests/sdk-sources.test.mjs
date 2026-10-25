@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { loadSources, readSource } from '../scripts/lib/sdk-sources.mjs';
+import { loadSources, loadDeveloperSource, readSource } from '../scripts/lib/sdk-sources.mjs';
 
 test('a full candidate SHA and fork repository override main without reading worktree changes', async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'qortoo-source-candidate-'));
@@ -31,5 +31,28 @@ test('a full candidate SHA and fork repository override main without reading wor
     assert.equal(upstream.editRef, 'main');
     assert.equal((await readSource(source, 'docs/start.md', false)).toString(), '# Candidate');
     assert.equal(source.files.has('docs/untracked.md'), false);
+  } finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+test('developer docs use the website checkout and existing link transformation', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'qortoo-developer-docs-'));
+  const git = (...args) => execFileSync('git', ['-C', directory, ...args], { encoding: 'utf8' }).trim();
+  try {
+    git('init', '--initial-branch=main');
+    await mkdir(path.join(directory, 'docs'));
+    await writeFile(path.join(directory, 'docs/start.md'), '# Original');
+    git('add', '.');
+    git('-c', 'user.name=Docs fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '-m', 'fixture');
+    const sha = git('rev-parse', 'HEAD');
+    await rm(path.join(directory, 'docs/start.md'));
+    await writeFile(path.join(directory, 'docs/new.md'), '# New\n\n[Guide](guide.md)');
+    await writeFile(path.join(directory, 'docs/guide.md'), '# Guide');
+    const source = loadDeveloperSource(directory, sha);
+    assert.equal(source.sha, sha);
+    assert.equal(source.files.has('docs/start.md'), false);
+    assert.equal(source.files.has('docs/new.md'), true);
+    const raw = (await readSource(source, 'docs/new.md', false)).toString();
+    const { analyzeDocument, transformDocument } = await import('../scripts/lib/documents.mjs');
+    assert.match(transformDocument(raw, analyzeDocument(raw), source, 'docs/new.md', [source]).body, /\/docs\/developer\/guide\//);
   } finally { await rm(directory, { recursive: true, force: true }); }
 });

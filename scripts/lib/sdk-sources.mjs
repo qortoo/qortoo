@@ -1,5 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
+import { existsSync, lstatSync } from 'node:fs';
 import path from 'node:path';
 
 export const git = (directory, ...args) => execFileSync('git', ['-C', directory, ...args], { encoding: 'utf8' }).trimEnd();
@@ -18,6 +19,16 @@ export function loadSources(root, config, env = process.env) {
   });
 }
 export async function readSource(source, file, worktree) {
-  if (worktree) return readFile(path.join(source.directory, file));
+  if (worktree || source.id === 'developer') return readFile(path.join(source.directory, file));
   return execFileSync('git', ['-C', source.directory, 'show', `${source.sha}:${file}`], { maxBuffer: 32 * 1024 * 1024 });
+}
+
+export function loadDeveloperSource(root, sha) {
+  // Site-owned docs follow the checked-out website, including local previews.
+  const files = new Set(git(root, 'ls-files', '--cached', '--others', '--exclude-standard', '-z').split('\0')
+    .filter(file => file && existsSync(path.join(root, file)) && lstatSync(path.join(root, file)).isFile()));
+  return { id: 'developer', title: 'Developer', description: 'Shared development and repository workflows',
+    repository: 'qortoo/qortoo', directory: root, ref: 'main', editRef: 'main', sha, files,
+    navigation: ['index', 'repository-workflows', 'developer-site', 'benchmark-results', '...'],
+    dirtyDocs: git(root, 'status', '--porcelain', '--', 'docs') !== '' };
 }
