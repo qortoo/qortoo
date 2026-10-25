@@ -1,6 +1,7 @@
 import site from '../../site.config.json';
 import type { ComponentProps } from 'react';
 import { Mermaid } from './mermaid';
+import { PerformanceOverview, PerformanceTopic } from './performance';
 import defaultMdxComponents from 'fumadocs-ui/mdx';
 import type { MDXComponents } from 'mdx/types';
 
@@ -20,6 +21,8 @@ export function getMDXComponents(components?: MDXComponents) {
   return {
     ...defaultMdxComponents,
     Mermaid,
+    PerformanceTopic,
+    PerformanceOverview,
     a: DocumentLink,
     img: DocumentImage,
     ...components,
