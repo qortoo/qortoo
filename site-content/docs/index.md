@@ -21,3 +21,8 @@ Shared core concepts live in the Rust SDK documentation. Go-specific behavior is
 ## Find an API
 
 See [API reference](/docs/api/) for generating API documentation and finding the public API source.
+
+## Contribute across repositories
+
+See [Repository workflows](/docs/developer/repository-workflows/)
+for repository roles and how SDK checks, benchmarks, and website publication connect.

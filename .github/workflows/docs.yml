@@ -3,9 +3,8 @@ name: Documentation
 on:
   pull_request:
     branches: [main]
-    # Operational docs and repository metadata are not published site inputs.
+    # Repository metadata is not published site content.
     paths-ignore:
-      - 'docs/**'
       - 'README.md'
       - 'AGENTS.md'
       - 'LICENSE'
@@ -14,9 +13,8 @@ on:
       - '.github/workflows/assign-author.yml'
   push:
     branches: [main]
-    # Operational docs and repository metadata are not published site inputs.
+    # Repository metadata is not published site content.
     paths-ignore:
-      - 'docs/**'
       - 'README.md'
       - 'AGENTS.md'
       - 'LICENSE'
