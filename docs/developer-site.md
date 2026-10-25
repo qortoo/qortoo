@@ -69,6 +69,13 @@ introduction and API guidance live in `site-content/docs/`. Homepage examples ar
 extracted from SDK getting started guides. Change SDK behavior explanations in the
 owning SDK repository; change navigation and presentation in this repository.
 
+Documentation uses a single sidebar tree ordered by `site-content/docs/meta.json`:
+Overview, SDK guides, API reference, and Benchmarks. The documentation layout omits
+the shared shortcut links to avoid duplicating tree destinations. The homepage
+keeps those links in its header. Sidebar grouping and page titles do not change
+document URLs. Group labels use uppercase, bold accent text and a divider to
+distinguish them from navigation links.
+
 Diagrams use SVG text labels. The renderer fits a diagram to the available width
 when it needs at most 15% reduction, preserves its aspect ratio, and recalculates
 on resize. Smaller diagrams retain their original size; wider diagrams retain
