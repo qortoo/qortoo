@@ -1,0 +1,37 @@
+---
+title: CheckPoint-based PushPull Mechanism
+description: Exchange Push and Pull packets between two clients and one server. Trace how each participant chooses and advances its checkpoint.
+---
+
+## Read a CheckPoint
+
+Qortoo resumes synchronization from a CheckPoint, a pair written as `(sseq, cseq)`. The server assigns `sseq` in the datatype’s shared history. Each client assigns `cseq` to its own writes for that subscription. The pair marks different stages of progress depending on where you read it.
+
+| Where you read it | `sseq` · position in server history | `cseq` · sequence of the client’s own writes |
+| --- | --- | --- |
+| Client’s stored CheckPoint | Last server position the client has applied. | Highest write sequence acknowledged in a Pull the client has applied. |
+| Push request | The client’s stored position. The server starts scanning after it. | Sequence of the last write in this batch. An empty Push sends the client’s stored `cseq`. |
+| Pull response | Last server position covered by this response. | Highest write sequence this response acknowledges through that position. |
+| Server’s record for a subscription | Latest applied server position reported by this client. | Highest write sequence the server has accepted from this client. |
+
+The **server head** is the latest position assigned in the datatype’s history. The server updates a subscription’s reported `sseq` when that client sends a Push with a newer applied position. It can also accept writes that a partial Pull has yet to acknowledge.
+
+## Exchange packets between two clients
+
+Client A and Client B subscribe to the same datatype. Both clients have applied and reported server position 10. A has three previously acknowledged writes and two pending writes. B has two pending writes.
+
+The explorer models the in-development Rust batching behavior. A Push batch or Pull page stops before adding a transaction that would bring the total size of the included transactions above **1,000 bytes**. A single transaction larger than 1,000 bytes can go in a batch or page by itself. B’s 700-byte and 600-byte writes therefore go in separate Push batches. The explorer shows server history after position 10.
+
+Start with B and complete both exchanges, then send A. A starts at `(10, 3)` and sends `(10, 5)` with writes A4 and A5. The server’s record for A becomes `(10, 5)`. The first Pull covers only B’s first write at server position 11, so it carries `(11, 3)`.
+
+Lose that response and retry from A. After A finishes, send B again with an empty Push body to read A’s writes. You can also reverse the order or step back to explore a different exchange.
+
+<PushPullExplorer />
+
+## Where does the next request start?
+
+If a Pull is lost, the client keeps its stored CheckPoint and buffered writes. A retry can therefore send the same Push again. The server uses the subscription’s accepted `cseq` to skip writes it already accepted and starts the Pull scan after the Push’s reported `sseq`.
+
+A Pull response covers a contiguous prefix of server history. A client’s own writes in that prefix advance its acknowledgement without occupying response bytes. Applying the response releases acknowledged writes from the buffer. A page can therefore finish at a different server position from the last transaction in its body.
+
+See [Connectivity](/docs/rust/connectivity/) for the exchange contract and [Event loop](/docs/rust/event-loop/) for sync scheduling.
